@@ -1,0 +1,4 @@
+[submodule "Ghost"]
+	path = Ghost
+	url = https://github.com/avranju/Ghost.git
+	branch = blogorama
