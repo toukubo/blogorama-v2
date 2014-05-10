@@ -1,0 +1,13 @@
+{
+  "name": "export-comments",
+  "description": "Exports comments from blogorama in WXR format as needed by Disqus.",
+  "repository": "http://github.com/avranju/blogorama-v2/tools/export-comments",
+  "version": "0.0.1",
+  "dependencies": {
+    "csv": "^0.3.7",
+    "q": "^1.0.1",
+    "sqlite3": "^2.2.3",
+    "lodash": "^2.4.1",
+    "xml": "0.0.12"
+  }
+}
