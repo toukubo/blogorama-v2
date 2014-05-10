@@ -1,0 +1,13 @@
+{
+  "name": "pandoc_filter",
+  "version": "0.0.0",
+  "description": "pandoc-filter",
+  "main": "app.js",
+  "author": {
+    "name": "rajave",
+    "email": ""
+  },
+  "dependencies": {
+    "q": "~1.0.0"
+  }
+}
