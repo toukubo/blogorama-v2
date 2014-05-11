@@ -75,6 +75,12 @@ function main() {
     });
 }
 
+function loadPosts() {
+    return openDb().then(function(db) {
+        return Q.nfcall(db.all.bind(db), "select * from posts");
+    });
+}
+
 function convertDateToDisqusFormat(val) {
     var date = new Date(val);
     return sprintf("%d-%02d-%02d %02d:%02d:%02d",
