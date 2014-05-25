@@ -4,16 +4,12 @@ var xmlrpc = require("xmlrpc");
 var Validator = require("validator");
 var Url = require("url");
 var Q = require("q");
-var FTPClient = require("ftp");
 var config = require("./config");
-var FS = require("fs");
-var http = require("http");
-var _ = require("lodash");
-var sqlite3 = require("sqlite3").verbose();
-var Path = require("path");
+var exec = require("child_process").exec;
+var sprintf = require("sprintf").sprintf;
 
 var server = xmlrpc.createServer({
-    host: config.host,
+    host: config.host || "localhost",
     port: process.env.port || config.port || 12000
 });
 
@@ -26,31 +22,42 @@ server.on("weblogUpdate.ping", function(err, params, callback) {
         var url = Url.parse(params[1]);
         var slug = Validator.trim(url.pathname, "/");
 
-        var filePath = Path.join(__dirname, "ghost.db");
-
-        // download ghost.db & read post
-        deleteLocalDb(filePath).then(function() {
-            return downloadDatabase(filePath);
+        // get post data
+        getPost(slug).then(function(post) {
+            return indexPost(post);
         }).then(function() {
-            return openDb(filePath);
-        }).then(function(db) {
-            return [db, loadPost(db, slug)];
-        }).spread(function(db, post) {
-            return [Q.ninvoke(db, "close"), indexPost(post)];
-        }).spread(function () {
             callback(null, "ok");
         }).fail(function(err) {
-            console.log("An error occurred:", err);
-            callback(null, "not ok - " + err);
-        }).done();
+            callback(null, "not ok - " + JSON.stringify(err));
+        });
+
     } else {
         callback(null, "not ok");
     }
 });
 
+function getPost(slug) {
+    var deferred = Q.defer();
+    exec(sprintf("%s %s %s %s %s",
+            config.postOptions.command,
+            config.postOptions.url,
+            config.postOptions.userName,
+            config.postOptions.password,
+            slug), function(err, stdout, stderr) {
+        if(err) {
+            deferred.reject(err);
+            return;
+        }
+
+        deferred.resolve(JSON.parse(stdout));
+    });
+
+    return deferred.promise;
+}
+
 function indexPost(post) {
     var deferred = Q.defer();
-    var options = Url.parse("http://nerd-search.cloudapp.net/blog/post/" + post.id);
+    var options = Url.parse(config.searchUrl + post.id);
     _.defaults(options, {
         method: "POST",
         headers: {
@@ -69,73 +76,6 @@ function indexPost(post) {
     // write the post's json
     req.write(JSON.stringify(post));
     req.end();
-
-    return deferred.promise;
-}
-
-function openDb(filePath) {
-    var deferred = Q.defer();
-    var db = new sqlite3.Database(filePath, sqlite3.OPEN_READONLY);
-    db.on("open", function () {
-        deferred.resolve(db);
-    }).on("error", function (err) {
-        deferred.reject(err);
-    });
-
-    return deferred.promise;
-}
-
-function loadPost(db, slug) {
-    return Q.ninvoke(db, "get", "select * from posts where slug=$slug", {
-        "$slug": slug
-    });
-}
-
-function deleteLocalDb(filePath) {
-    var deferred = Q.defer();
-    FS.exists(filePath, function(exists) {
-        if(exists) {
-	    console.log("deleteing local copy of db");
-            Q.nfcall(FS.unlink, filePath).done(function() {
-	        deferred.resolve();
-	    }, function(err) {
-	        deferred.reject(err);
-	    });
-        } else {
-	    deferred.resolve();
-        }
-    });
-
-    return deferred.promise;
-}
-
-function downloadDatabase(filePath) {
-    var deferred = Q.defer();
-    var client = new FTPClient();
-
-    client.on("ready", function() {
-        client.get("/site/wwwroot/content/data/ghost.db", function(err, stream) {
-            if(err) {
-                console.log("Attempt to download ghost.db failed with: ", err);
-                deferred.reject(err);
-                return;
-            }
-
-            stream.once("close", function() {
-                client.end();
-                deferred.resolve();
-            });
-
-            console.log("Writing ghost.db to", filePath);
-            stream.pipe(FS.createWriteStream(filePath));
-        });
-    });
-
-    client.connect({
-        host: config.ftp.host,
-        user: config.ftp.user,
-        password: config.ftp.password
-    });
 
     return deferred.promise;
 }

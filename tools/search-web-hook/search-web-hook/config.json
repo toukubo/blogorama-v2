@@ -1,8 +1,11 @@
 ﻿{
     "port": 12000,
-    "ftp": {
-        "host": "PUT-FTP-SERVER-HERE",
-        "user": "USER-NAME-HERE",
-        "password": "PASSWORD-HERE"
+    "host": "IP HERE",
+    "searchUrl": "SEARCH URL HERE",
+    "postOptions": {
+        "command": "phantomjs get-post.js",
+        "url": "GHOST SIGN IN URL",
+        "userName": "GHOST USER NAME",
+        "password": "GHOST PASSWORD"
     }
 }

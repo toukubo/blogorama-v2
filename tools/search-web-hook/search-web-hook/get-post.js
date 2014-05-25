@@ -42,7 +42,7 @@ function getPost(next, page, status) {
 		});
 		console.log(JSON.stringify(post));
 		next(status);
-	});
+	}, 10000);
 }
 
 function login(page, next) {
