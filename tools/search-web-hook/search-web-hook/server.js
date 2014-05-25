@@ -10,10 +10,11 @@ var FS = require("fs");
 var http = require("http");
 var _ = require("lodash");
 var sqlite3 = require("sqlite3").verbose();
+var Path = require("path");
 
 var server = xmlrpc.createServer({
-    host: "localhost",
-    port: process.env.port || config.port
+    host: config.host,
+    port: process.env.port || config.port || 12000
 });
 
 server.on("weblogUpdate.ping", function(err, params, callback) {
@@ -25,13 +26,17 @@ server.on("weblogUpdate.ping", function(err, params, callback) {
         var url = Url.parse(params[1]);
         var slug = Validator.trim(url.pathname, "/");
 
+        var filePath = Path.join(__dirname, "ghost.db");
+
         // download ghost.db & read post
-        downloadDatabase().then(function(filePath) {
+        deleteLocalDb(filePath).then(function() {
+            return downloadDatabase(filePath);
+        }).then(function() {
             return openDb(filePath);
         }).then(function(db) {
             return [db, loadPost(db, slug)];
         }).spread(function(db, post) {
-            return [Q.nfcall(db.close.bind(db)), indexPost(post)];
+            return [Q.ninvoke(db, "close"), indexPost(post)];
         }).spread(function () {
             callback(null, "ok");
         }).fail(function(err) {
@@ -81,15 +86,32 @@ function openDb(filePath) {
 }
 
 function loadPost(db, slug) {
-    return Q.nfcall(db.get.bind(db), "select * from posts where slug=$slug", {
+    return Q.ninvoke(db, "get", "select * from posts where slug=$slug", {
         "$slug": slug
     });
 }
 
-function downloadDatabase() {
+function deleteLocalDb(filePath) {
+    var deferred = Q.defer();
+    FS.exists(filePath, function(exists) {
+        if(exists) {
+	    console.log("deleteing local copy of db");
+            Q.nfcall(FS.unlink, filePath).done(function() {
+	        deferred.resolve();
+	    }, function(err) {
+	        deferred.reject(err);
+	    });
+        } else {
+	    deferred.resolve();
+        }
+    });
+
+    return deferred.promise;
+}
+
+function downloadDatabase(filePath) {
     var deferred = Q.defer();
     var client = new FTPClient();
-    var filePath = __dirname + "\\ghost.db";
 
     client.on("ready", function() {
         client.get("/site/wwwroot/content/data/ghost.db", function(err, stream) {
@@ -101,9 +123,10 @@ function downloadDatabase() {
 
             stream.once("close", function() {
                 client.end();
-                deferred.resolve(filePath);
+                deferred.resolve();
             });
 
+            console.log("Writing ghost.db to", filePath);
             stream.pipe(FS.createWriteStream(filePath));
         });
     });
