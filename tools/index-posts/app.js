@@ -77,7 +77,7 @@ function indexPosts(config, posts, cb) {
     }, function(err, res, body) {
       process.stdout.write((err) ? " not ok".red : " ok".green + "\n");
       callback(err, {res: res, body: body});
-    })
+    });
   }, function(err, results) {
     if(cb) {
       cb(err, results);
