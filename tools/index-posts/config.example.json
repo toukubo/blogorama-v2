@@ -1,0 +1,9 @@
+{
+	"ftp": {
+		"host": "ftp host name",
+		"userName": "user name",
+		"password": "password",
+		"filePath": "path to sqlite db"
+	},
+	"searchUrl": "elastic search url"
+}
